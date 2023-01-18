@@ -13,4 +13,5 @@ public interface IndexRepository extends JpaRepository<Index, Integer> {
 
     List<Index> getAllByPageId(int id);
     List<Index> getAllByLemmaId(int id);
+
 }

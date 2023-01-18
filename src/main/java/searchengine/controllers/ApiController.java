@@ -7,7 +7,9 @@ import org.springframework.web.bind.annotation.*;
 import searchengine.concurrency.Node;
 import searchengine.concurrency.Nodes;
 import searchengine.config.SitesList;
+import searchengine.dto.PageData;
 import searchengine.dto.Result;
+import searchengine.dto.SearchResult;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.model.*;
 import searchengine.service.*;
@@ -15,12 +17,8 @@ import searchengine.util.texts.TextUtil;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ForkJoinPool;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api")
@@ -134,10 +132,23 @@ public class ApiController {
     private LemmaService lemmaService;
 
     @GetMapping("/search")
-    public void search(@RequestParam String query, @RequestParam(required = false) String site,
-                       @RequestParam(required = false) Integer offset, @RequestParam(required = false) Integer limit){
+    public ResponseEntity<SearchResult> search(@RequestParam String query, @RequestParam(required = false) String site,
+                       @RequestParam(required = false) Integer offset, @RequestParam(required = false) Integer limit) {
+        List<PageData> res = new ArrayList<>();
+        if (site == null) {
+            List<Site> sites = this.siteService.getAll();
+            for (Site siteRes : sites) {
+                List<PageData> pageData = getData(siteRes, query, offset, limit);
+                res.addAll(pageData);
+            }
+        } else {
+            Site siteRes = this.siteService.getByUrl(site);
+            res = getData(siteRes, query, offset, limit);
+        }
+        return new ResponseEntity<>(new SearchResult(true, res.size(), res), HttpStatus.OK);
+    }
 
-        Site siteRes = this.siteService.getByUrl(site);
+    public List<PageData> getData(Site siteRes, String query, Integer offset, Integer limit) {
         TextUtil textUtil = new TextUtil(query);
         try {
             LinkedHashMap<String, Integer> wordsMap = textUtil.countWords();
@@ -154,17 +165,46 @@ public class ApiController {
                 indices.retainAll(collect);
             }
 
-            //System.out.println(indices);
+//            System.out.println(indices);
 
+            //ArrayList<Float> relev = new ArrayList<>();
 
-            float sumRank = 0;
-            for(Index index : indices){
-                sumRank += index.getRank();
+            List<PageRelev> pageRelevs = new ArrayList<>();
+
+            for (Index index : indices) {
+                //нахождение суммы всех ранк для взятой страницы
+                Page page = index.getPage();
+                float sum = 0;
+                for (int i = 0; i < indices.size(); i++) {
+                    if (indices.get(i).getPage().getId() == page.getId()) {
+                        sum += indices.get(i).getRank();
+                    }
+                }
+                pageRelevs.add(new PageRelev(page, sum));
             }
 
+            float max = (float) pageRelevs.stream().mapToDouble(PageRelev::getRelev).max().orElse(1);
 
+            //нахождение относительная релевантность
+
+            for (int i = 0; i < pageRelevs.size(); i++) {
+                pageRelevs.get(i).divide(max);
+            }
+
+            pageRelevs.sort(null);
+            pageRelevs = pageRelevs.stream().distinct().toList();
+
+            List<PageData> pageData = pageRelevs.stream().map(x -> new PageData(
+                    x.getPage().getPath(),
+                    x.getPage().getContent().substring(x.getPage().getContent().indexOf("<title>") + 7,
+                            x.getPage().getContent().indexOf("</title>")),
+                    TextUtil.getSnippets(x.getPage().getContent(), words),
+                    x.getRelev())).skip(offset == null ? 0 : offset)
+                    .limit(limit == null ? pageRelevs.size() : limit).toList();
+            return pageData;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
+
 }
