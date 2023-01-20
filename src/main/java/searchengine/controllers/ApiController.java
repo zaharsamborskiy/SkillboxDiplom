@@ -132,8 +132,11 @@ public class ApiController {
     private LemmaService lemmaService;
 
     @GetMapping("/search")
-    public ResponseEntity<SearchResult> search(@RequestParam String query, @RequestParam(required = false) String site,
-                       @RequestParam(required = false) Integer offset, @RequestParam(required = false) Integer limit) {
+    public ResponseEntity<Object> search(@RequestParam String query, @RequestParam(required = false) String site,
+                                         @RequestParam(required = false) Integer offset, @RequestParam(required = false) Integer limit) {
+        if (query.isEmpty()) {
+            return new ResponseEntity<>(new Result(false, "Задан пустой поисковый запрос"), HttpStatus.OK);
+        }
         List<PageData> res = new ArrayList<>();
         if (site == null) {
             List<Site> sites = this.siteService.getAll();
@@ -157,6 +160,9 @@ public class ApiController {
             /*int del = (int) (lemmaInSite.size() * 0.1);
             lemmaInSite = lemmaInSite.subList(0, lemmaInSite.size() - del);*/
 
+            if(lemmaInSite.size() == 0){
+                return new ArrayList<>();
+            }
             List<Index> indices = this.indexService.getAllByLemmaId(lemmaInSite.get(0).getId());
 
             for (int i = 1; i < lemmaInSite.size(); i++) {
@@ -194,12 +200,12 @@ public class ApiController {
             pageRelevs.sort(null);
             pageRelevs = pageRelevs.stream().distinct().toList();
 
-            List<PageData> pageData = pageRelevs.stream().map(x -> new PageData(
-                    x.getPage().getPath(),
-                    x.getPage().getContent().substring(x.getPage().getContent().indexOf("<title>") + 7,
-                            x.getPage().getContent().indexOf("</title>")),
-                    TextUtil.getSnippets(x.getPage().getContent(), words),
-                    x.getRelev())).skip(offset == null ? 0 : offset)
+            List<PageData> pageData = pageRelevs.stream().map(x -> new PageData(siteRes.getUrl(), siteRes.getName(),
+                            x.getPage().getPath().replace(siteRes.getUrl(), ""),
+                            x.getPage().getContent().substring(x.getPage().getContent().indexOf("<title>") + 7,
+                                    x.getPage().getContent().indexOf("</title>")),
+                            TextUtil.getSnippets(x.getPage().getContent(), words),
+                            x.getRelev())).skip(offset == null ? 0 : offset)
                     .limit(limit == null ? pageRelevs.size() : limit).toList();
             return pageData;
         } catch (IOException e) {
