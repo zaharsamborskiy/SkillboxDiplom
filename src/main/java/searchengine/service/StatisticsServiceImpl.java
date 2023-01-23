@@ -12,9 +12,7 @@ import searchengine.model.Site;
 import searchengine.model.Status;
 
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,12 +29,6 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     @Override
     public StatisticsResponse getStatistics() {
-        String[] errors = {
-                "Ошибка индексации: главная страница сайта не доступна",
-                "Ошибка индексации: сайт не доступен",
-                ""
-        };
-
         List<Site> sites = this.siteService.getAll();
 
         TotalStatistics total = new TotalStatistics();
@@ -45,8 +37,20 @@ public class StatisticsServiceImpl implements StatisticsService {
         total.setIndexing(indexing);
 
         List<DetailedStatisticsItem> detailed = new ArrayList<>();
-        for(int i = 0; i < sites.size(); i++) {
-            Site site = sites.get(i);
+        setStatisticsData(sites, total, detailed);
+
+        StatisticsResponse response = new StatisticsResponse();
+        StatisticsData data = new StatisticsData();
+        data.setTotal(total);
+        data.setDetailed(detailed);
+        response.setStatistics(data);
+        response.setResult(true);
+        return response;
+    }
+
+    private static void setStatisticsData(List<Site> sites, TotalStatistics total,
+                                          List<DetailedStatisticsItem> detailed) {
+        for (Site site : sites) {
             DetailedStatisticsItem item = new DetailedStatisticsItem();
             item.setName(site.getName());
             item.setUrl(site.getUrl());
@@ -63,13 +67,5 @@ public class StatisticsServiceImpl implements StatisticsService {
             total.setLemmas(total.getLemmas() + lemmas);
             detailed.add(item);
         }
-
-        StatisticsResponse response = new StatisticsResponse();
-        StatisticsData data = new StatisticsData();
-        data.setTotal(total);
-        data.setDetailed(detailed);
-        response.setStatistics(data);
-        response.setResult(true);
-        return response;
     }
 }

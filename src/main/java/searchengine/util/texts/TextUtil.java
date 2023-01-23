@@ -27,14 +27,12 @@ public class TextUtil {
         LinkedHashMap<String, Integer> res = new LinkedHashMap<>();
         String[] split = str.split(" ");
         for (String s : split) {
-            //System.out.println(s);
             if (s.isEmpty()) continue;
             List<String> wordBaseForms =
                     luceneMorph.getNormalForms(s);
             s = wordBaseForms.get(0);
             List<String> morphInfo = luceneMorph.getMorphInfo(s);
             String info = morphInfo.get(0);
-            //System.out.println(info);
             if (info.split(" ")[1].equals("С")
                     || info.split(" ")[1].equals("ИНФИНИТИВ")
                     || info.split(" ")[1].equals("П")
@@ -59,9 +57,6 @@ public class TextUtil {
             end = line.length();
         return line.substring(s, start) + "<b>" + word + "</b>"
                 + line.substring(start + word.length(), end);
-
-
-        //System.out.println();
     }
 
     public static String getSnippets(String line, List<String> words) {
@@ -72,10 +67,5 @@ public class TextUtil {
                 stringJoiner.add(snippet);
         }
         return stringJoiner.toString();
-    }
-
-    public static void main(String[] args) {
-        String snippet = TextUtil.getSnippet("qqqqqqqqPrivethh", "Privet");
-        System.out.println(snippet);
     }
 }

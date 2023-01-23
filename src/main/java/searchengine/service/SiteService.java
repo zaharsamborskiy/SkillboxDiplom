@@ -1,5 +1,6 @@
 package searchengine.service;
 
+import searchengine.dto.PageData;
 import searchengine.model.Site;
 
 import java.util.List;
@@ -15,4 +16,6 @@ public interface SiteService {
     Site get(int id);
 
     Site getByUrl(String url);
+
+    List<PageData> searchSite(String query, String site, Integer offset, Integer limit);
 }
